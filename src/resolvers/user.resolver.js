@@ -43,7 +43,7 @@ export default {
       return { token: createToken(user, secret, "30m") };
     },
     //Allows register users to sign into the platform
-    signIn: async (parent, { input }, { models, secret }) => {
+    signIn: async (parent, { input }, { models }) => {
       const { login, password } = input;
 
       // login can either be username or email

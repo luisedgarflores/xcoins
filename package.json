@@ -51,7 +51,8 @@
   "nodemonConfig": {
     "ignore": [
       "test/*",
-      "docs/*"
+      "docs/*",
+      "tests/*"
     ],
     "delay": "2500"
   },

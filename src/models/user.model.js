@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { AuthenticationError, UserInputError, ForbiddenError   } from "apollo-server";
+import { UserInputError, ForbiddenError   } from "apollo-server";
 
 const UserDefinition = (sequelize, DataTypes) => {
   const User = sequelize.define(

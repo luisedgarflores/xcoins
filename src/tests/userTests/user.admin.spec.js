@@ -4,8 +4,9 @@ import {
   createAdmin,
   createAdminWithClient,
   createDumbUser,
+  createInvalidDumbUser,
 } from "./user.utils";
-import { describe, beforeEach, it } from 'mocha'
+import { describe, beforeEach, it, reporters } from 'mocha'
 import { LOGIN, UPSERT_USER } from "./users.test.mutations";
 const { deleteAllRecords } = require("../utils");
 const chai = require("chai");
@@ -22,12 +23,12 @@ const AdminSetup = async () => {
   return currentAdmin;
 };
 
-describe("Login tests", async () => {
+describe("LOGIN TESTS".green, async () => {
   beforeEach(async () => {
     await deleteAllRecords();
   });
 
-  it("Login with a valid admin", async () => {
+  it("LOGIN WITH A VALID ADMIN", async () => {
     const { user: mockValidAdmin } = await createAdmin();
 
     const validAdminData = {
@@ -48,7 +49,7 @@ describe("Login tests", async () => {
     expect(loginData.signIn.user).to.deep.equal(validAdminData);
   });
 
-  it("Login with invalid credentialas", async () => {
+  it("LOGIN WITH INVALID CREDENTIALAS", async () => {
     const input = {
       login: "notValidUser",
       password: "notValidPassword",
@@ -65,12 +66,12 @@ describe("Login tests", async () => {
 });
 
 
-describe("Create users test", async () => {
+describe("CREATE USER TESTS".green, async () => {
   beforeEach(async () => {
     admin = await AdminSetup();
   });
 
-  it("Create user with valid data", async () => {
+  it("CREATE USER WITH VALID DATA", async () => {
     const { user: validUserData } = await createDumbUser()
 
     const input = {
@@ -89,4 +90,41 @@ describe("Create users test", async () => {
 
     expect(validUser).to.deep.equal(validUserData);
   });
+
+  it('CREATE USER WITH MISSING REQUIRED FIELDS', async () => {
+    const { user: invalidUserData } = await createInvalidDumbUser()
+
+    const input = {
+      ...invalidUserData
+    }
+
+    try {
+      await admin.client.request(UPSERT_USER, {
+        input
+      })
+
+      expect.fail()
+    } catch (error) {
+      const { response } = error
+      expect(response.errors[0].message).to.equal('Invalid data provided')
+    }
+  })
+
+  it('CREATE USER WITH TOO SHORT PASSWORD', async () => {
+    const { user: validUserData } = await createDumbUser()
+
+    validUserData.password = '1234'
+
+    const input = {
+      ...validUserData
+    }
+
+    try {
+      await admin.client.request(UPSERT_USER, { input })
+      expect.fail()
+    } catch (error) {
+      const { response } = error
+      expect(response.errors[0].message).to.equal('Validation len on password failed')
+    }
+  })
 });

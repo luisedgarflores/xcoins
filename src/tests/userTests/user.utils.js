@@ -4,7 +4,6 @@ import { LOGIN } from "./users.test.mutations";
 import colors from "colors";
 
 export const createAdminWithClient = async () => {
-  console.log("GENERATING ADMIN WITH CLIENT".yellow);
   const user = await factory.create('User', {}, { role: 'ADMIN' })
 
   const input = {
@@ -25,7 +24,6 @@ export const createAdminWithClient = async () => {
 };
 
 export const createAdmin = async () => {
-  console.log("GENERATING ADMIN".yellow);
 
   const user = await factory.create("User", {}, { role: "ADMIN" });
 
@@ -35,13 +33,18 @@ export const createAdmin = async () => {
 };
 
 export const createDumbUser = async () => {
-  console.log("GENERATION DUMB USER".yellow);
-
   const user = await factory.create("DumbUser", {}, {role: 'CLIENT'});
-
-  console.log
 
   return {
     user,
   };
 };
+
+export const createInvalidDumbUser = async () => {
+  const user = await factory.create('InvalidDumbUser', {})
+
+  return {
+    user
+  }
+
+}

@@ -47,3 +47,18 @@ factory.define("DumbUser", DumbUser, (buildOptions = { role: "CLIENT" }) => {
 
   return attrs;
 });
+
+
+factory.define("InvalidDumbUser", DumbUser, (buildOptions = { role: "CLIENT" }) => {
+  const attrs = {
+    email: factory.sequence(
+      "user.email",
+      (n) => `dummy-${buildOptions.role}-${n}@my-domain.com`
+    ),
+    password: "12345678",
+    username: factory.chance("word"),
+    role: buildOptions.role,
+  };
+
+  return attrs;
+});
