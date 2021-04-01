@@ -14,7 +14,7 @@ const port = process.env.SERVER_PORT;
 const colors = require('colors');
 const helmet = require("helmet");
 const app = express();
-const erase_database_on_restart = true;
+const erase_database_on_restart = false;
 app.use(cors());
 app.use(helmet({ contentSecurityPolicy: (process.env.NODE_ENV === 'production') ? undefined : false }))
 
@@ -58,7 +58,7 @@ const httpServer = http.createServer(app);
 
 //syncs models into db
 sequelize
-  .sync({ force: erase_database_on_restart, alter: true })
+  .sync({ force: erase_database_on_restart, alter: false })
   .then(async () => {
     if (erase_database_on_restart) {
       await setUpMockData();
@@ -94,7 +94,7 @@ const getMe = async (req) => {
     try {
       return await jwt.verify(token, process.env.SECRET);
     } catch (err) {
-      throw new AuthenticationError("Your session expired. Sign in again");
+      throw  new AuthenticationError("Your session expired. Sign in again");
     }
   }
 };

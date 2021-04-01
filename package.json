@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "set NODE_ENV=test&& NODE_ENV=test mocha --require @babel/register --timeout 55000 src/tests/index.js",
+    "test": "set NODE_ENV=test&& NODE_ENV=test mocha --require @babel/register --timeout 5500 src/tests/index.js",
     "start": "NODE_ENV=test nodemon --exec babel-node src/index.js",
     "clean": "rm -rf build && mkdir build",
     "build-babel": "babel -d ./build ./app.js -s"
@@ -61,7 +61,7 @@
       "node": true
     },
     "globals": {
-      "describe": "writable"
+      "describe": true
     }
   }
 }

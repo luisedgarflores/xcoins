@@ -9,11 +9,12 @@ const sequelize = new Sequelize(
     host: process.env.HOST || testDB.HOST,
     port: process.env.PORT || testDB.PORT,
     dialect: process.env.DIALECT || testDB.DIALECT,
+    logging: false,
   }
 );
 
 const models = {
-  User: sequelize.import('./user')
+  User: sequelize.import('./user.model')
 };
 
 Object.keys(models).forEach((key) => {
@@ -21,8 +22,6 @@ Object.keys(models).forEach((key) => {
     models[key].associate(models);
   }
 });
-
-console.log(models)
 
 export { sequelize };
 export default models;

@@ -46,6 +46,7 @@ export default gql`
     username: String
     role: String
     email: String!
+    password: String!
   }
 
   input GetUserInput {

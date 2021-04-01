@@ -16,3 +16,15 @@ export const LOGIN = gql`
     }
   }
 `
+
+export const UPSERT_USER = gql`
+  mutation upsertUser($input: UpsertUserInput!) {
+    upsertUser(input: $input) {
+      id
+      name
+      username
+      role
+      email
+    }
+  }
+`
