@@ -1,0 +1,67 @@
+{
+  "name": "Xcoins",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "set NODE_ENV=test&& NODE_ENV=test mocha --require @babel/register --timeout 55000 src/tests/index.js",
+    "start": "NODE_ENV=test nodemon --exec babel-node src/index.js",
+    "clean": "rm -rf build && mkdir build",
+    "build-babel": "babel -d ./build ./app.js -s"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/cli": "^7.13.14",
+    "@babel/core": "^7.13.14",
+    "@babel/node": "^7.13.13",
+    "@babel/register": "^7.13.14",
+    "apollo-server": "^2.22.2",
+    "apollo-server-express": "^2.22.2",
+    "bcrypt": "^5.0.1",
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "faker": "^5.5.2",
+    "graphql": "^15.5.0",
+    "graphql-iso-date": "^3.6.1",
+    "graphql-resolvers": "^0.4.2",
+    "graphql-tools": "^7.0.4",
+    "helmet": "^4.4.1",
+    "jsonwebtoken": "^8.5.1",
+    "pg": "^8.5.1",
+    "sequelize": "^5.21.3"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-runtime": "^7.13.10",
+    "@babel/polyfill": "^7.12.1",
+    "@babel/preset-env": "^7.13.12",
+    "@babel/runtime": "^7.13.10",
+    "chai": "^4.3.4",
+    "chai-string": "^1.5.0",
+    "eslint": "^7.23.0",
+    "factory-girl": "^5.0.4",
+    "graphql-request": "^3.4.0",
+    "graphql-tag": "^2.11.0",
+    "mocha": "^8.3.2",
+    "nodemon": "^2.0.7"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "test/*",
+      "docs/*"
+    ],
+    "delay": "2500"
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "node": true
+    },
+    "globals": {
+      "describe": "writable"
+    }
+  }
+}
