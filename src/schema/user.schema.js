@@ -45,8 +45,8 @@ export default gql`
     name: String
     username: String
     role: String
-    email: String!
-    password: String!
+    email: String
+    password: String
   }
 
   input GetUserInput {
@@ -55,7 +55,7 @@ export default gql`
 
   input SignUpInput {
     username: String!
-    nombre: String!
+    name: String!
     email: String!
     password: String!
   }

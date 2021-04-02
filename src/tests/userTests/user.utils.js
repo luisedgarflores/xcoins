@@ -1,10 +1,9 @@
 import { createGraphQLClient, basicClient } from "../utils";
 import factory from "factory-girl";
 import { LOGIN } from "./users.test.mutations";
-import colors from "colors";
 
 export const createAdminWithClient = async () => {
-  const user = await factory.create('User', {}, { role: 'ADMIN' })
+  const user = await factory.create("User", {}, { role: "ADMIN" });
 
   const input = {
     login: user.username,
@@ -24,7 +23,6 @@ export const createAdminWithClient = async () => {
 };
 
 export const createAdmin = async () => {
-
   const user = await factory.create("User", {}, { role: "ADMIN" });
 
   return {
@@ -32,8 +30,16 @@ export const createAdmin = async () => {
   };
 };
 
+export const createUser = async () => {
+  const user = await factory.create("User", {}, { role: "CLIENT" });
+
+  return {
+    user,
+  };
+};
+
 export const createDumbUser = async () => {
-  const user = await factory.create("DumbUser", {}, {role: 'CLIENT'});
+  const user = await factory.create("DumbUser", {}, { role: "CLIENT" });
 
   return {
     user,
@@ -41,10 +47,9 @@ export const createDumbUser = async () => {
 };
 
 export const createInvalidDumbUser = async () => {
-  const user = await factory.create('InvalidDumbUser', {})
+  const user = await factory.create("InvalidDumbUser", {});
 
   return {
-    user
-  }
-
-}
+    user,
+  };
+};

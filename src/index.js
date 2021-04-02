@@ -14,9 +14,9 @@ const port = process.env.SERVER_PORT;
 const colors = require('colors');
 const helmet = require("helmet");
 const app = express();
-const erase_database_on_restart = false;
+const erase_database_on_restart = true;
 app.use(cors());
-app.use(helmet({ contentSecurityPolicy: (process.env.NODE_ENV === 'production') ? undefined : false }))
+//app.use(helmet({ contentSecurityPolicy: (process.env.NODE_ENV === 'production') ? undefined : false }))
 
 const server = new ApolloServer({
   typeDefs: schema,
@@ -58,11 +58,11 @@ const httpServer = http.createServer(app);
 
 //syncs models into db
 sequelize
-  .sync({ force: erase_database_on_restart, alter: false })
+  .sync({ force: erase_database_on_restart, alter: true })
   .then(async () => {
-    if (erase_database_on_restart) {
-      await setUpMockData();
-    }
+    // if (erase_database_on_restart) {
+    //   await setUpMockData();
+    // }
     httpServer.listen({ port }, () => {
       console.log("Apollo Server on http://localhost:8000/graphql".green);
     });

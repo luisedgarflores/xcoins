@@ -1,130 +1,232 @@
 import { basicClient } from "../utils";
-
 import {
   createAdmin,
   createAdminWithClient,
+  createUser,
   createDumbUser,
   createInvalidDumbUser,
 } from "./user.utils";
-import { describe, beforeEach, it, reporters } from 'mocha'
-import { LOGIN, UPSERT_USER } from "./users.test.mutations";
+import { describe, beforeEach, it } from "mocha";
+import { LOGIN, UPSERT_USER } from "./user.test.mutations";
 const { deleteAllRecords } = require("../utils");
 const chai = require("chai");
 const chaiString = require("chai-string");
 chai.use(chaiString);
 const { expect } = chai;
 
+let admin, client;
+let multipleUsers = []
 
-let admin;
-
-const AdminSetup = async () => {
-  await deleteAllRecords();
+const setUpAdmin = async () => {
   const currentAdmin = await createAdminWithClient();
   return currentAdmin;
 };
 
-describe("LOGIN TESTS".green, async () => {
+const setUpUser = async () => {
+  const user = await createUser();
+  return user;
+};
+
+const setUpMultipleUsers = async ({ usersQuantity }) => {
+  const users = []
+
+  for (let i = 0; i < usersQuantity; i++) {
+    users.push((await createUser()).user)
+  }
+
+  return users.map(user => {
+    return {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    }
+  })
+};
+describe("ADMIN TESTS".yellow, async () => {
   beforeEach(async () => {
     await deleteAllRecords();
   });
+  describe("LOGIN TESTS".blue, async () => {
+    it("LOGIN WITH A VALID ADMIN", async () => {
+      const { user: mockValidAdmin } = await createAdmin();
 
-  it("LOGIN WITH A VALID ADMIN", async () => {
-    const { user: mockValidAdmin } = await createAdmin();
+      const validAdminData = {
+        id: mockValidAdmin.id.toString(),
+        name: mockValidAdmin.name,
+        role: mockValidAdmin.role,
+        email: mockValidAdmin.email,
+        username: mockValidAdmin.username,
+      };
 
-    const validAdminData = {
-      id: mockValidAdmin.id.toString(),
-      name: mockValidAdmin.name,
-      role: mockValidAdmin.role,
-      email: mockValidAdmin.email,
-      username: mockValidAdmin.username,
-    };
+      const input = {
+        login: mockValidAdmin.username,
+        password: "12345678",
+      };
 
-    const input = {
-      login: mockValidAdmin.username,
-      password: "12345678",
-    };
+      const loginData = await basicClient.request(LOGIN, { input });
 
-    const loginData = await basicClient.request(LOGIN, { input });
-
-    expect(loginData.signIn.user).to.deep.equal(validAdminData);
-  });
-
-  it("LOGIN WITH INVALID CREDENTIALAS", async () => {
-    const input = {
-      login: "notValidUser",
-      password: "notValidPassword",
-    };
-
-    try {
-      await basicClient.request(LOGIN, { input });
-      expect.fail();
-    } catch (error) {
-      const { response } = error;
-      expect(response.errors[0].message).to.equal("User sent does not exist");
-    }
-  });
-});
-
-
-describe("CREATE USER TESTS".green, async () => {
-  beforeEach(async () => {
-    admin = await AdminSetup();
-  });
-
-  it("CREATE USER WITH VALID DATA", async () => {
-    const { user: validUserData } = await createDumbUser()
-
-    const input = {
-      ...validUserData,
-    };
-
-    const { upsertUser: validUser } = await admin.client.request(UPSERT_USER, {
-      input,
+      expect(loginData.signIn.user).to.deep.equal(validAdminData);
     });
 
+    it("LOGIN WITH INVALID CREDENTIALAS", async () => {
+      const input = {
+        login: "notValidUser",
+        password: "notValidPassword",
+      };
 
-    delete validUser.id;
-    delete validUserData.get
-    delete validUserData.save
-    delete validUserData.password
-
-    expect(validUser).to.deep.equal(validUserData);
+      try {
+        await basicClient.request(LOGIN, { input });
+        expect.fail();
+      } catch (error) {
+        const { response } = error;
+        expect(response.errors[0].message).to.equal("User sent does not exist");
+      }
+    });
   });
 
-  it('CREATE USER WITH MISSING REQUIRED FIELDS', async () => {
-    const { user: invalidUserData } = await createInvalidDumbUser()
+  describe("CREATE USER TESTS".blue, async () => {
+    beforeEach(async () => {
+      admin = await setUpAdmin();
+    });
 
-    const input = {
-      ...invalidUserData
-    }
+    it("CREATE USER WITH VALID DATA", async () => {
+      const { user: validUserData } = await createDumbUser();
 
-    try {
-      await admin.client.request(UPSERT_USER, {
-        input
+      const input = {
+        ...validUserData,
+      };
+
+      const { upsertUser: validUser } = await admin.client.request(
+        UPSERT_USER,
+        {
+          input,
+        }
+      );
+
+      delete validUser.id;
+      delete validUserData.get;
+      delete validUserData.save;
+      delete validUserData.password;
+
+      expect(validUser).to.deep.equal(validUserData);
+    });
+
+    it("CREATE USER WITH MISSING REQUIRED FIELDS", async () => {
+      const { user: invalidUserData } = await createInvalidDumbUser();
+
+      const input = {
+        ...invalidUserData,
+      };
+
+      try {
+        await admin.client.request(UPSERT_USER, {
+          input,
+        });
+
+        expect.fail();
+      } catch (error) {
+        const { response } = error;
+        expect(response.errors[0].message).to.equal("Invalid data provided");
+      }
+    });
+
+    it("CREATE USER WITH TOO SHORT PASSWORD", async () => {
+      const { user: validUserData } = await createDumbUser();
+
+      validUserData.password = "1234";
+
+      const input = {
+        ...validUserData,
+      };
+
+      try {
+        await admin.client.request(UPSERT_USER, { input });
+        expect.fail();
+      } catch (error) {
+        const { response } = error;
+        expect(response.errors[0].message).to.equal(
+          "Validation len on password failed"
+        );
+      }
+    });
+  });
+
+  describe("UPDATE USERS TESTS".blue, async () => {
+    beforeEach(async () => {
+      admin = await setUpAdmin();
+      client = await setUpUser();
+    });
+
+    it("UPDATING VALID USER", async () => {
+      const updatedName = client.user.name + "abc";
+
+      const input = {
+        id: client.user.id,
+        name: updatedName,
+      };
+
+      const updatedClientData = {
+        id: client.user.id.toString(),
+        username: client.user.username,
+        name: updatedName,
+        email: client.user.email,
+        role: client.user.role,
+      };
+
+      const {
+        upsertUser: updatedClient,
+      } = await admin.client.request(UPSERT_USER, { input });
+
+      expect(updatedClient).to.deep.equal(updatedClientData);
+    });
+
+    it("UPDATING NON EXISTANT USER", async () => {
+      try {
+        const input = {
+          id: client.user.id + 1,
+          username: "fakeUsername",
+        };
+        await admin.client.request(UPSERT_USER, { input });
+        expect.fail();
+      } catch (error) {
+        const { response } = error;
+        expect(response.errors[0].message).to.equal("User sent does not exist");
+      }
+    });
+
+    it("UPDATE USER PASSWORD WITH TOO SHORT VALUE", async () => {
+      try {
+        const input = {
+          id: client.user.id,
+          password: "1234567",
+        };
+
+        await admin.client.request(UPSERT_USER, { input });
+      } catch (error) {
+        const { response } = error;
+
+        expect(response.errors[0].message).to.equal(
+          "Validation len on password failed"
+        );
+      }
+    });
+  });
+
+  describe("GET USERS TEST".green, async () => {
+    beforeEach(async () => {
+      admin = await setUpAdmin();
+    });
+
+    describe("GET MULTIPLE REGISTERED USERS", async () => {
+      beforeEach(async () => {
+        multipleUsers = setUpMultipleUsers()
+      });
+
+      it.only('QUERYING MULTIPLE USERS', async () => {
+        const users = await admin.client.request()
       })
-
-      expect.fail()
-    } catch (error) {
-      const { response } = error
-      expect(response.errors[0].message).to.equal('Invalid data provided')
-    }
-  })
-
-  it('CREATE USER WITH TOO SHORT PASSWORD', async () => {
-    const { user: validUserData } = await createDumbUser()
-
-    validUserData.password = '1234'
-
-    const input = {
-      ...validUserData
-    }
-
-    try {
-      await admin.client.request(UPSERT_USER, { input })
-      expect.fail()
-    } catch (error) {
-      const { response } = error
-      expect(response.errors[0].message).to.equal('Validation len on password failed')
-    }
-  })
+    });
+  });
 });

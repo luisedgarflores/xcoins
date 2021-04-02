@@ -1,4 +1,4 @@
-import { sequelize } from '../models'
+import models from "../models";
 const ENDPOINT = "http://localhost:8000/graphql";
 
 const { GraphQLClient } = require("graphql-request");
@@ -16,6 +16,5 @@ export const basicClient = new GraphQLClient(ENDPOINT, {
 });
 
 export const deleteAllRecords = async () => {
-  await sequelize
-  .sync({ force: true, alter: true })
+  await models.User.destroy({ truncate: true });
 };

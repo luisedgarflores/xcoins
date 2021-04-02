@@ -78,15 +78,14 @@ export default {
       isAuthenticated,
       async (parent, { input }, { models, me }) => {
         const { id, ...rest } = input;
-
-        // In case id is sent, an update is perform
+        // In case id is sent, an update is performed
         if (id !== null && id !== undefined) {
           // updates user instance based on updateInstance User function
           return models.User.updateInstance({
             loggedInUser: me,
             data: {
               id,
-              rest,
+              ...rest,
             },
           });
         } else {
