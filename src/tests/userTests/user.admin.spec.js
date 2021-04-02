@@ -6,8 +6,10 @@ import {
   createDumbUser,
   createInvalidDumbUser,
 } from "./user.utils";
-import { describe, beforeEach, it } from "mocha";
+import { describe, beforeEach, it, afterEach } from "mocha";
 import { LOGIN, UPSERT_USER } from "./user.test.mutations";
+import colors from "colors";
+import { GET_USERS, GET_USER } from "./user.test.queries";
 const { deleteAllRecords } = require("../utils");
 const chai = require("chai");
 const chaiString = require("chai-string");
@@ -15,7 +17,7 @@ chai.use(chaiString);
 const { expect } = chai;
 
 let admin, client;
-let multipleUsers = []
+let multipleUsers = [];
 
 const setUpAdmin = async () => {
   const currentAdmin = await createAdminWithClient();
@@ -28,26 +30,30 @@ const setUpUser = async () => {
 };
 
 const setUpMultipleUsers = async ({ usersQuantity }) => {
-  const users = []
+  const users = [];
 
   for (let i = 0; i < usersQuantity; i++) {
-    users.push((await createUser()).user)
+    users.push((await createUser()).user);
   }
-
-  return users.map(user => {
+  return users.map((user) => {
     return {
-      id: user.id,
+      id: user.id.toString(),
       name: user.name,
       username: user.username,
       email: user.email,
-      role: user.role
-    }
-  })
+      role: user.role,
+    };
+  });
 };
+
 describe("ADMIN TESTS".yellow, async () => {
   beforeEach(async () => {
     await deleteAllRecords();
   });
+
+  afterEach(async () => {
+    await deleteAllRecords()
+  })
   describe("LOGIN TESTS".blue, async () => {
     it("LOGIN WITH A VALID ADMIN", async () => {
       const { user: mockValidAdmin } = await createAdmin();
@@ -185,10 +191,11 @@ describe("ADMIN TESTS".yellow, async () => {
     it("UPDATING NON EXISTANT USER", async () => {
       try {
         const input = {
-          id: client.user.id + 1,
+          id: client.user.id+=2,
           username: "fakeUsername",
         };
-        await admin.client.request(UPSERT_USER, { input });
+        const error = await admin.client.request(UPSERT_USER, { input });
+        console.log(error)
         expect.fail();
       } catch (error) {
         const { response } = error;
@@ -200,10 +207,11 @@ describe("ADMIN TESTS".yellow, async () => {
       try {
         const input = {
           id: client.user.id,
-          password: "1234567",
+          password: "1234",
         };
 
         await admin.client.request(UPSERT_USER, { input });
+        expect.fail()
       } catch (error) {
         const { response } = error;
 
@@ -214,19 +222,60 @@ describe("ADMIN TESTS".yellow, async () => {
     });
   });
 
-  describe("GET USERS TEST".green, async () => {
+  describe("GET USERS TEST".blue, async () => {
     beforeEach(async () => {
       admin = await setUpAdmin();
     });
 
-    describe("GET MULTIPLE REGISTERED USERS", async () => {
+    describe("GET REGISTERED USERS", async () => {
       beforeEach(async () => {
-        multipleUsers = setUpMultipleUsers()
+        multipleUsers = await setUpMultipleUsers({ usersQuantity: 15 });
       });
 
-      it.only('QUERYING MULTIPLE USERS', async () => {
-        const users = await admin.client.request()
+      it("QUERYING MULTIPLE USERS", async () => {
+        const { getUsers: users } = await admin.client.request(GET_USERS, {});
+        // remove admin from retrurned data since it will not be contained in the recently created users
+        const usersWithoutAdmin = users.filter(
+          (user) => user.id !== admin.user.id.toString()
+        );
+
+        expect(usersWithoutAdmin).to.deep.equal(multipleUsers);
+      });
+
+      it("GET A SINGLE REGISTERED USER", async () => {
+        const input = {
+          id: multipleUsers[0].id,
+        };
+        const { getUser: user } = await admin.client.request(GET_USER, {
+          input,
+        });
+
+        expect(user).to.deep.equal(multipleUsers[0]);
+      });
+
+      it('SEND INVALID PARAMS FOR QUERY', async () => {
+        try {
+          await admin.client.request(GET_USER, {})
+          expect.fail()
+        } catch(error) {
+          const { response } = error
+          expect(response.errors[0].message).to.equal('Variable "$input" of required type "GetUserInput!" was not provided.')
+        }
       })
     });
+
+    it('GET NON EXISTANT USER', async () => {
+      const input = {
+        id: admin.user.id+=16
+      }
+      try {
+        await admin.client.request(GET_USER, { input })
+        expect.fail()
+      } catch (error) {
+        const { response } = error
+
+        expect(response.errors[0].message).to.equal('User sent does not exist')
+      }
+    })
   });
 });

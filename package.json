@@ -54,7 +54,7 @@
       "docs/*",
       "tests/*"
     ],
-    "delay": "2500"
+    "delay": "500"
   },
   "eslintConfig": {
     "env": {

@@ -15,6 +15,15 @@ const colors = require('colors');
 const helmet = require("helmet");
 const app = express();
 const erase_database_on_restart = true;
+
+process.once('SIGUSR2', function () {
+  process.kill(process.pid, 'SIGUSR2');
+});
+process.on('SIGINT', function () {
+  process.kill(process.pid, 'SIGINT');
+});
+
+
 app.use(cors());
 //app.use(helmet({ contentSecurityPolicy: (process.env.NODE_ENV === 'production') ? undefined : false }))
 
@@ -60,9 +69,9 @@ const httpServer = http.createServer(app);
 sequelize
   .sync({ force: erase_database_on_restart, alter: true })
   .then(async () => {
-    // if (erase_database_on_restart) {
-    //   await setUpMockData();
-    // }
+      if (erase_database_on_restart) {
+        await setUpMockData();
+      }
     httpServer.listen({ port }, () => {
       console.log("Apollo Server on http://localhost:8000/graphql".green);
     });

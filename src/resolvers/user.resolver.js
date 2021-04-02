@@ -1,5 +1,9 @@
 import jwt from "jsonwebtoken";
-import { AuthenticationError, UserInputError } from "apollo-server";
+import {
+  AuthenticationError,
+  ForbiddenError,
+  UserInputError,
+} from "apollo-server";
 import { combineResolvers } from "graphql-resolvers";
 import { isAdmin, isAuthenticated } from "./permissions/globalPermissions";
 
@@ -17,11 +21,17 @@ export default {
       if (!me) return null;
       return await models.User.findByPk(me.id);
     },
-    getUser: async (parent, { id }, { models }) => {
-      return await models.User.findByPk(id);
+    getUser: async (parent, { input: { id } }, { models, me }) => {
+      if (me.role === "ADMIN" || me.id === id) {
+        const user = await models.User.findByPk(id);
+        if (!user) return new UserInputError("User sent does not exist");
+        return user;
+      }
+
+      throw new ForbiddenError("Not authorized to see this information");
     },
     getUsers: combineResolvers(
-      isAuthenticated,
+      isAdmin,
       async (parent, args, { models, me }) => {
         if (me.role === "ADMIN") return await models.User.findAll();
       }

@@ -1,6 +1,6 @@
 import { createGraphQLClient, basicClient } from "../utils";
 import factory from "factory-girl";
-import { LOGIN } from "./users.test.mutations";
+import { LOGIN } from "./user.test.mutations";
 
 export const createAdminWithClient = async () => {
   const user = await factory.create("User", {}, { role: "ADMIN" });
