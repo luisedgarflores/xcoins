@@ -10,7 +10,7 @@ const sequelize = new Sequelize(
     port: process.env.PORT || testDB.PORT,
     dialect: process.env.DIALECT || testDB.DIALECT,
     logging: false,
-  }
+  },
 );
 
 const models = {

@@ -19,16 +19,19 @@ const { expect } = chai;
 let admin, client;
 let multipleUsers = [];
 
+// Saves admin and returns admin instances and it's graphQL client
 const setUpAdmin = async () => {
   const currentAdmin = await createAdminWithClient();
   return currentAdmin;
 };
 
+// Saves a single user with no graphQL client
 const setUpUser = async () => {
   const user = await createUser();
   return user;
 };
 
+// Use User factories to generate and save fake user to db
 const setUpMultipleUsers = async ({ usersQuantity }) => {
   const users = [];
 
@@ -51,9 +54,6 @@ describe("ADMIN TESTS".yellow, async () => {
     await deleteAllRecords();
   });
 
-  afterEach(async () => {
-    await deleteAllRecords()
-  })
   describe("LOGIN TESTS".blue, async () => {
     it("LOGIN WITH A VALID ADMIN", async () => {
       const { user: mockValidAdmin } = await createAdmin();
@@ -159,7 +159,7 @@ describe("ADMIN TESTS".yellow, async () => {
     });
   });
 
-  describe("UPDATE USERS TESTS".blue, async () => {
+  describe("UPDATE USER TESTS".blue, async () => {
     beforeEach(async () => {
       admin = await setUpAdmin();
       client = await setUpUser();

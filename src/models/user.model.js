@@ -48,6 +48,8 @@ const UserDefinition = (sequelize, DataTypes) => {
     }
   );
 
+
+  // Wrapper for class update function, validates extra permission and data
   User.updateInstance = async ({ data, loggedInUser }) => {
     if (data && loggedInUser) {
       if (loggedInUser.role === "ADMIN" || loggedInUser.id === data.id) {
@@ -67,6 +69,7 @@ const UserDefinition = (sequelize, DataTypes) => {
     throw new UserInputError("The input provided is not valid");
   };
 
+  //  Wrapper for class create function, validates permissions and data existance
   User.createInstance = async ({ data, loggedInUser }) => {
     if (data && loggedInUser) {
       if (loggedInUser.role === "ADMIN") {
@@ -90,15 +93,18 @@ const UserDefinition = (sequelize, DataTypes) => {
     return user;
   };
 
+  // Hook to hash user password before instance gets stored in the db
   User.beforeCreate(async (user) => {
     user.password = await user.generatePasswordHash();
   });
 
+  // Handles password hashing using bcrypt
   User.prototype.generatePasswordHash = async function () {
     const saltRounds = 10;
     return await bcrypt.hash(this.password, saltRounds);
   };
 
+  // Performs a comparission between input password and stored hashed password
   User.prototype.validatePassword = function (password) {
     return bcrypt.compareSync(password, this.password);
   };

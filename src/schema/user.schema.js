@@ -5,6 +5,7 @@ export default gql`
     me: User
     getUser(input: GetUserInput!): User!
     getUsers: [User!]!
+    getExchangeRate: ExchangeRate!
   }
 
   extend type Mutation {
@@ -12,6 +13,15 @@ export default gql`
     signIn(input: SignInInput!): LoginPayload!
     deleteUser(input: DeleteUserInput!): Boolean!
     upsertUser(input: UpsertUserInput!): User!
+  }
+
+  extend type Subscription {
+    exchangeRateUpdated: ExchangeRate!
+  }
+
+  type ExchangeRate {
+    usd: String!
+    lastUpdated: Date!
   }
 
   type Token {

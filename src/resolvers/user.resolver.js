@@ -6,6 +6,7 @@ import {
 } from "apollo-server";
 import { combineResolvers } from "graphql-resolvers";
 import { isAdmin, isAuthenticated } from "./permissions/globalPermissions";
+import { pubsub, EVENTS, fetchAPI } from '../utils'
 
 // Handles token creation usign user fields to create jwt token
 const createToken = async (user, secret, expiresIn) => {
@@ -17,10 +18,12 @@ const createToken = async (user, secret, expiresIn) => {
 
 export default {
   Query: {
+    // Allows user to get it's information when logged in
     me: async (parent, args, { models, me }) => {
       if (!me) return null;
       return await models.User.findByPk(me.id);
     },
+    // Allows admin to see any user, but client users can only see their profiles
     getUser: async (parent, { input: { id } }, { models, me }) => {
       if (me.role === "ADMIN" || me.id === id) {
         const user = await models.User.findByPk(id);
@@ -30,12 +33,24 @@ export default {
 
       throw new ForbiddenError("Not authorized to see this information");
     },
+    // Allos admin to see all users
     getUsers: combineResolvers(
       isAdmin,
       async (parent, args, { models, me }) => {
         if (me.role === "ADMIN") return await models.User.findAll();
       }
     ),
+    getExchangeRate: combineResolvers(
+      isAuthenticated,
+      async (_parent, _args, { models }) => {
+        const exchangeRate = await fetchAPI()
+        
+        return {
+          usd: exchangeRate.quote.USD.price,
+          lastUpdated: exchangeRate.last_updated
+        }
+      }
+    )
   },
   Mutation: {
     // Allow users to register into the platform
@@ -129,6 +144,11 @@ export default {
       return await {
         token: createToken(user, secret, "600m"),
       };
+    },
+  },
+  Subscription: {
+    exchangeRateUpdated: console.log('I HAVE BEEN CALLED') || {
+      subscribe: () => pubsub.asyncIterator(EVENTS.EXCHANGE_RATE.UPDATED),
     },
   },
 };
