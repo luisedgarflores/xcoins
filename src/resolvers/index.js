@@ -1,4 +1,4 @@
-import userResolvers from './user'
+import userResolvers from './user.resolver'
 import { GraphQLDateTime } from 'graphql-iso-date'
 
 const customScalarResolver = {

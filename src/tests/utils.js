@@ -1,8 +1,9 @@
-import models from '../models'
+import models from "../models";
 const ENDPOINT = "http://localhost:8000/graphql";
 
 const { GraphQLClient } = require("graphql-request");
 
+// Generates an authenticated graphQL client based on user token
 export const createGraphQLClient = (token) => {
   return new GraphQLClient(ENDPOINT, {
     headers: {
@@ -11,14 +12,12 @@ export const createGraphQLClient = (token) => {
   });
 };
 
+// Generates an unauthenticated graphQL client 
 export const basicClient = new GraphQLClient(ENDPOINT, {
   headers: {},
 });
 
+// Destroys all rows in the user table
 export const deleteAllRecords = async () => {
-  console.log('DELETING IT ALL')
-  for (let i = 0; i < models.length; i++) {
-    const model = models[i];
-    await model.destroy({ truncate: true });
-  }
+  await models.User.destroy({ truncate: true });
 };

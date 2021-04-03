@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "set NODE_ENV=test&& NODE_ENV=test mocha --require @babel/register --timeout 55000 src/tests/index.js",
+    "test": "set NODE_ENV=test&& NODE_ENV=test mocha --require @babel/register --timeout 5500 src/tests/index.js",
     "start": "NODE_ENV=test nodemon --exec babel-node src/index.js",
     "clean": "rm -rf build && mkdir build",
     "build-babel": "babel -d ./build ./app.js -s"
@@ -19,6 +19,7 @@
     "@babel/register": "^7.13.14",
     "apollo-server": "^2.22.2",
     "apollo-server-express": "^2.22.2",
+    "axios": "^0.21.1",
     "bcrypt": "^5.0.1",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
@@ -51,9 +52,10 @@
   "nodemonConfig": {
     "ignore": [
       "test/*",
-      "docs/*"
+      "docs/*",
+      "tests/*"
     ],
-    "delay": "2500"
+    "delay": "500"
   },
   "eslintConfig": {
     "env": {
@@ -61,7 +63,7 @@
       "node": true
     },
     "globals": {
-      "describe": "writable"
+      "describe": true
     }
   }
 }
