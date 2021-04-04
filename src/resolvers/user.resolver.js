@@ -5,25 +5,28 @@ import {
   UserInputError,
 } from "apollo-server";
 import { combineResolvers } from "graphql-resolvers";
-import { isAdmin, isAuthenticated } from "./permissions/globalPermissions";
+import {
+  isAdmin,
+  isAuthenticatedAndVerified,
+  isAuthenticated,
+} from "./permissions/globalPermissions";
 import {
   pubsub,
   EVENTS,
   fetchAPI,
   generateOTP,
   generateEmailSender,
-  validateOTP
 } from "../utils";
 
 // Handles token creation usign user fields to create jwt token
 const createToken = async (user, secret, expiresIn) => {
-  const { id, email, username, role } = user;
-  return await jwt.sign({ id, email, username, role }, secret, {
+  const { id, email, username, role, validatedUser } = user;
+  return await jwt.sign({ id, email, username, role, validatedUser }, secret, {
     expiresIn,
   });
 };
 
-const shouldFetch = false;
+const shouldFetch = true;
 
 export default {
   Query: {
@@ -49,42 +52,35 @@ export default {
         if (me.role === "ADMIN") return await models.User.findAll();
       }
     ),
-    getExchangeRate: combineResolvers(
-      isAuthenticated,
-      async () => {
-        const exchangeRate = await fetchAPI(shouldFetch);
-
-        return {
-          usd: exchangeRate.quote.USD.price,
-          lastUpdated: exchangeRate.last_updated,
-        };
-      }
-    ),
-    requestOTP: async (_parent, { input: { email } }, { models }) => {
-      const user = models.User.findOne({
-        where: {
-          email,
-        },
-      });
-
-      const emailSender = await generateEmailSender();
-
-      if (user) {
-        const otp = await generateOTP();
-        await user.update({ otp });
-        await user.save();
-        await emailSender.sendEmail({
-          to: user.email,
-          subject: "BTC/USD requested code",
-          text: otp,
-        });
-      }
+    getExchangeRate: combineResolvers(isAuthenticatedAndVerified, async () => {
+      const exchangeRate = await fetchAPI(shouldFetch);
 
       return {
-        message:
-          "If the email belongs to a registered user, a code will be send to that email",
+        usd: exchangeRate.quote.USD.price,
+        lastUpdated: exchangeRate.last_updated,
       };
-    },
+    }),
+    requestOTP: combineResolvers(
+      isAuthenticated,
+      async (_parent, _args, { models, me }) => {
+        const user = await models.User.findByPk(me.id);
+
+        if (user) {
+          const emailSender = await generateEmailSender();
+          const otp = generateOTP({ id: user.id });
+          await user.update({ otp, otpCreatedAt: new Date() });
+          await emailSender.sendEmail({
+            to: user.email,
+            subject: "BTC/USD requested code",
+            text: otp,
+          });
+        } else {
+          return false;
+        }
+
+        return true;
+      }
+    ),
   },
   Mutation: {
     // Allow users to register into the platform
@@ -101,30 +97,17 @@ export default {
         name,
         role: "CLIENT",
         validatedUser: false,
-        otp,
       });
-      let validOTP = false;
-      let otp;
+      const otp = generateOTP({ id: user.id });
+      await user.update({ otp, otpCreatedAt: new Date() });
 
-      do {
-        otp = await generateOTP(300);
-        const users = await models.User.findAll({
-          where: {
-            otp,
-          },
-        });
+      await emailSender.sendEmail({
+        to: user.email,
+        text: otp,
+        subject: "Account created successfully",
+      });
 
-        if (!users || users.length === 0) {
-          validOTP = true;
-          await emailSender.sendEmail({
-            to: user.email,
-            text: otp,
-            subject: "Account created successfully",
-          });
-        }
-      } while (!validOTP);
-
-      return true;
+      return user;
     },
     //Allows register users to sign into the platform
     signIn: async (parent, { input }, { models }) => {
@@ -159,7 +142,7 @@ export default {
     ),
     // Allows admin to register new users and update them if necessary
     upsertUser: combineResolvers(
-      isAuthenticated,
+      isAuthenticatedAndVerified,
       async (parent, { input }, { models, me }) => {
         const { id, ...rest } = input;
         // In case id is sent, an update is performed
@@ -195,31 +178,42 @@ export default {
       }
     ),
 
-    validateUser: async (_parent, { input: otp}, { models }) => {
-      console.log(otp)
-      const user = models.User.findOne({
-        where: {
-          otp: otp.otp
+    // Validates if otp is assigned to an user and if it is valid
+    validateUser: combineResolvers(
+      isAuthenticated,
+      async (_parent, { input: { otp } }, { models, me }) => {
+        try {
+          const currentDate = new Date();
+          const user = await models.User.findByPk(me.id);
+
+          const isValid = await user.validateOTP(otp);
+
+          if (isValid) {
+            if (
+              currentDate - new Date(user.otpCreatedAt) <=
+              process.env.OTP_DURATION
+            ) {
+              await user.update({
+                validatedUser: true,
+                otp: null,
+                otpCreatedAt: null,
+              });
+
+              return user;
+            } else {
+              await user.update({
+                otp: null,
+                otpCreatedAt: null,
+              });
+
+              await user.save();
+            }
+          }
+        } catch (error) {
+          throw new UserInputError("Code send is not valid, or it has expired");
         }
-      })
-
-      console.log(user)
-
-      const validOTP = await validateOTP({ otp: otp.otp })
-      console.log(validOTP)
-      if (user && validOTP) {
-        await user.update({
-          validatedUser: true
-        })
-
-        await user.save()
-
-        console.log(user)
-        
-        return user
-
       }
-    },
+    ),
   },
   // User to parse default return information into login payload
   LoginPayload: {
@@ -233,7 +227,7 @@ export default {
     },
   },
   Subscription: {
-    exchangeRateUpdated: console.log("I HAVE BEEN CALLED") || {
+    exchangeRateUpdated: {
       subscribe: () => pubsub.asyncIterator(EVENTS.EXCHANGE_RATE.UPDATED),
     },
   },

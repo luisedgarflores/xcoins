@@ -113,7 +113,11 @@ describe("CLIENT TESTS".yellow, async () => {
     };
     const { signUp: response } = await basicClient.request(SIGNUP, { input });
 
-    expect(response).to.be.true;
+    delete response.user.id
+    delete response.user.role
+    delete input.password
+
+    expect(response.user).to.deep.equal(input);
   });
 
   it("SIGNUP WITH REPEATED USERNAME", async () => {
@@ -131,35 +135,6 @@ describe("CLIENT TESTS".yellow, async () => {
       expect(response.errors[0].message).to.equal("Validation error");
     }
   });
-
-  // it.only("VALIDATE USER WITH PROPER OTP", async () => {
-  //   const secret = "aISrlPG4PSL96yvdZu9Y";
-  //   totp.options = { digits: 6, step: 300 };
-  //   const otp = await totp.generate(secret);
-  //   console.log(otp);
-  //   const { user } = await createUser(otp);
-
-  //   const input = {
-  //     otp,
-  //   };
-
-  //   const userData = {
-  //     id: user.id.toString(),
-  //     email: user.email,
-  //     name: user.name,
-  //     username: user.username,
-  //     role: user.role,
-  //   };
-
-  //   const { validateUser: response } = await basicClient.request(
-  //     VALIDATE_USER,
-  //     {
-  //       input,
-  //     }
-  //   );
-
-  //   expect(response.user).to.deep.equal(userData);
-  // });
 
   it("SIGNUP WITH REPEATED EMAIL", async () => {
     try {

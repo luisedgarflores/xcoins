@@ -6,11 +6,11 @@ export default gql`
     getUser(input: GetUserInput!): User!
     getUsers: [User!]!
     getExchangeRate: ExchangeRate!
-    requestOTP(input: RequestOTP!): OTPRequested!
+    requestOTP: Boolean!
   }
 
   extend type Mutation {
-    signUp(input: SignUpInput!): Boolean!
+    signUp(input: SignUpInput!): LoginPayload!
     signIn(input: SignInInput!): LoginPayload!
     deleteUser(input: DeleteUserInput!): Boolean!
     upsertUser(input: UpsertUserInput!): User!
@@ -39,9 +39,6 @@ export default gql`
     password: String!
   }
 
-  input RequestOTP {
-    email: String!
-  }
 
   input ValidateUserInput {
     otp: String!

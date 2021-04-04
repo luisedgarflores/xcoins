@@ -6,10 +6,11 @@ import {
   createDumbUser,
   createInvalidDumbUser,
 } from "./user.utils";
-import { describe, beforeEach, it, afterEach } from "mocha";
+import { describe, beforeEach, it } from "mocha";
 import { LOGIN, UPSERT_USER } from "./user.test.mutations";
 import colors from "colors";
 import { GET_USERS, GET_USER } from "./user.test.queries";
+
 const { deleteAllRecords } = require("../utils");
 const chai = require("chai");
 const chaiString = require("chai-string");

@@ -8,16 +8,18 @@ import resolvers from "./resolvers";
 import models, { sequelize } from "./models";
 import jwt from "jsonwebtoken";
 import { pubsub, EVENTS, fetchAPI } from "./utils";
-import axios from "axios";
+
+
 
 const port = process.env.SERVER_PORT;
 const colors = require("colors"); // allows to print colored terminal output during development
 const helmet = require("helmet");
-const shouldFetch = false;
+const shouldFetch = true;
+
+
 
 const app = express();
 const erase_database_on_restart = true;
-
 
 const updateExchangeRate = (exchangeRate) => {
   pubsub.publish(EVENTS.EXCHANGE_RATE.UPDATED, {
@@ -29,7 +31,6 @@ const updateExchangeRate = (exchangeRate) => {
 };
 
 const coinmarketConsumer = setInterval(async () => {
-  console.log("ENTRANDO AL TIME");
   const exchangeRate = await fetchAPI(shouldFetch);
   updateExchangeRate(exchangeRate);
 }, 60000);
@@ -123,7 +124,7 @@ const setUpMockData = async () => {
     password: "12345678",
     role: "CLIENT",
     name: "Diego Flores",
-    validatedUser: true
+    validatedUser: true,
   });
 };
 

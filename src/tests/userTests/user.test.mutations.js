@@ -31,7 +31,18 @@ export const UPSERT_USER = gql`
 
 export const SIGNUP = gql`
   mutation signUp($input: SignUpInput!) {
-    signUp(input: $input)
+    signUp(input: $input) {
+      user {
+        id
+        name
+        username
+        email
+        role
+      }
+      token {
+        token
+      }
+    }
   }
 `;
 

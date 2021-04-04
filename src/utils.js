@@ -2,7 +2,15 @@ import pubsub, { EVENTS } from "./subscriptions";
 import axios from "axios";
 import nodemailer from "nodemailer";
 import { ApolloError } from "apollo-server";
-import { totp } from "otplib";
+import { hotp } from "otplib";
+
+hotp.options = { digits: 6 }
+
+const generateOTP = ({id}) => {
+  const counter = (new Date()).getTime() + id
+  return hotp.generate (process.env.OTP_SECRET, counter)
+}
+
 
 class EmailSender {
   constructor() {}
@@ -38,24 +46,13 @@ class EmailSender {
   }
 }
 
+
+
 const generateEmailSender = async () => {
   const emailSender = new EmailSender();
   await emailSender.setTransporter();
 
   return emailSender;
-};
-
-const generateOTP = async ({ step = 30 }) => {
-  const secret = process.env.OTP_SECRET;
-  totp.options = { digits: 6, step };
-  const token = await totp.generate(secret);
-  return token;
-};
-
-const validateOTP = async ({ otp }) => {
-  console.log(otp)
-  console.log(process.env.OTP_SECRET)
-  return totp.check({ token: otp, secret: process.env.OTP_SECRET });
 };
 
 const fetchAPI = async (shouldFetch) => {
@@ -101,7 +98,6 @@ module.exports = {
   EVENTS,
   fetchAPI,
   EmailSender,
-  generateOTP,
   generateEmailSender,
-  validateOTP
+  generateOTP,
 };
