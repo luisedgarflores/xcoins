@@ -30,11 +30,35 @@ export const createAdmin = async () => {
   };
 };
 
-export const createUser = async () => {
-  const user = await factory.create("User", {}, { role: "CLIENT" });
+export const createUser = async (otp) => {
+  const user = await factory.create(
+    "User",
+    {},
+    { role: "CLIENT", ...(otp ? { otp } : {}) }
+  );
 
   return {
     user,
+  };
+};
+
+export const createUserWithClient = async () => {
+  const user = await factory.create("User", {}, { role: "CLIENT" });
+
+  const input = {
+    login: user.username,
+    password: "12345678",
+  };
+
+  const loginData = await basicClient.request(LOGIN, {
+    input,
+  });
+
+  const client = await createGraphQLClient(loginData.signIn.token.token);
+
+  return {
+    user,
+    client,
   };
 };
 

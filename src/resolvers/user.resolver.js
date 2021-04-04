@@ -5,16 +5,28 @@ import {
   UserInputError,
 } from "apollo-server";
 import { combineResolvers } from "graphql-resolvers";
-import { isAdmin, isAuthenticated } from "./permissions/globalPermissions";
-import { pubsub, EVENTS, fetchAPI } from '../utils'
+import {
+  isAdmin,
+  isAuthenticatedAndVerified,
+  isAuthenticated,
+} from "./permissions/globalPermissions";
+import {
+  pubsub,
+  EVENTS,
+  fetchAPI,
+  generateOTP,
+  generateEmailSender,
+} from "../utils";
 
 // Handles token creation usign user fields to create jwt token
 const createToken = async (user, secret, expiresIn) => {
-  const { id, email, username, role } = user;
-  return await jwt.sign({ id, email, username, role }, secret, {
+  const { id, email, username, role, validatedUser } = user;
+  return await jwt.sign({ id, email, username, role, validatedUser }, secret, {
     expiresIn,
   });
 };
+
+const shouldFetch = true;
 
 export default {
   Query: {
@@ -25,47 +37,77 @@ export default {
     },
     // Allows admin to see any user, but client users can only see their profiles
     getUser: async (parent, { input: { id } }, { models, me }) => {
-      if (me.role === "ADMIN" || me.id === id) {
+      if (me.role === "ADMIN" || me.id.toString() === id.toString()) {
         const user = await models.User.findByPk(id);
         if (!user) return new UserInputError("User sent does not exist");
         return user;
       }
 
-      throw new ForbiddenError("Not authorized to see this information");
+      throw new ForbiddenError("User does not have admin permissions");
     },
-    // Allos admin to see all users
+    // Allows admin to see all users
     getUsers: combineResolvers(
       isAdmin,
       async (parent, args, { models, me }) => {
         if (me.role === "ADMIN") return await models.User.findAll();
       }
     ),
-    getExchangeRate: combineResolvers(
+    getExchangeRate: combineResolvers(isAuthenticatedAndVerified, async () => {
+      const exchangeRate = await fetchAPI(shouldFetch);
+
+      return {
+        usd: exchangeRate.quote.USD.price,
+        lastUpdated: exchangeRate.last_updated,
+      };
+    }),
+    requestOTP: combineResolvers(
       isAuthenticated,
-      async (_parent, _args, { models }) => {
-        const exchangeRate = await fetchAPI()
-        
-        return {
-          usd: exchangeRate.quote.USD.price,
-          lastUpdated: exchangeRate.last_updated
+      async (_parent, _args, { models, me }) => {
+        const user = await models.User.findByPk(me.id);
+
+        if (user) {
+          const emailSender = await generateEmailSender();
+          const otp = generateOTP({ id: user.id });
+          await user.update({ otp, otpCreatedAt: new Date() });
+          await emailSender.sendEmail({
+            to: user.email,
+            subject: "BTC/USD requested code",
+            text: otp,
+          });
+        } else {
+          return false;
         }
+
+        return true;
       }
-    )
+    ),
   },
   Mutation: {
     // Allow users to register into the platform
     signUp: async (
       parent,
-      { email, password, username, ...rest },
-      { models, secret }
+      { input: { email, password, username, name } },
+      { models }
     ) => {
+      const emailSender = await generateEmailSender();
       const user = await models.User.create({
         username,
         email,
         password,
-        rest,
+        name,
+        role: "CLIENT",
+        validatedUser: false,
       });
-      return { token: createToken(user, secret, "30m") };
+      const otp = generateOTP({ id: user.id });
+      await user.update({ otp, otpCreatedAt: new Date() });
+
+      await emailSender.sendEmail({
+        to: user.email,
+        text: otp,
+        subject: "Account created successfully",
+      });
+
+      return user;
     },
     //Allows register users to sign into the platform
     signIn: async (parent, { input }, { models }) => {
@@ -100,7 +142,7 @@ export default {
     ),
     // Allows admin to register new users and update them if necessary
     upsertUser: combineResolvers(
-      isAuthenticated,
+      isAuthenticatedAndVerified,
       async (parent, { input }, { models, me }) => {
         const { id, ...rest } = input;
         // In case id is sent, an update is performed
@@ -127,6 +169,7 @@ export default {
               loggedInUser: me,
               data: {
                 ...rest,
+                validatedUser: false,
               },
             });
           }
@@ -134,10 +177,47 @@ export default {
         return new UserInputError("Invalid data provided");
       }
     ),
+
+    // Validates if otp is assigned to an user and if it is valid
+    validateUser: combineResolvers(
+      isAuthenticated,
+      async (_parent, { input: { otp } }, { models, me }) => {
+        try {
+          const currentDate = new Date();
+          const user = await models.User.findByPk(me.id);
+
+          const isValid = await user.validateOTP(otp);
+
+          if (isValid) {
+            if (
+              currentDate - new Date(user.otpCreatedAt) <=
+              process.env.OTP_DURATION
+            ) {
+              await user.update({
+                validatedUser: true,
+                otp: null,
+                otpCreatedAt: null,
+              });
+
+              return user;
+            } else {
+              await user.update({
+                otp: null,
+                otpCreatedAt: null,
+              });
+
+              await user.save();
+            }
+          }
+        } catch (error) {
+          throw new UserInputError("Code send is not valid, or it has expired");
+        }
+      }
+    ),
   },
   // User to parse default return information into login payload
   LoginPayload: {
-    user: async (user, _args, _context) => {
+    user: async (user) => {
       return user;
     },
     token: async (user, _args, { secret }) => {
@@ -147,7 +227,7 @@ export default {
     },
   },
   Subscription: {
-    exchangeRateUpdated: console.log('I HAVE BEEN CALLED') || {
+    exchangeRateUpdated: {
       subscribe: () => pubsub.asyncIterator(EVENTS.EXCHANGE_RATE.UPDATED),
     },
   },

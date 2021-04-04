@@ -41,6 +41,19 @@ const UserDefinition = (sequelize, DataTypes) => {
           isEmail: true,
         },
       },
+      otp: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: true,
+      },
+      otpCreatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      validatedUser: {
+        type: DataTypes.BOOLEAN,
+        default: false,
+      },
     },
     {
       freezeTableName: true, // Disable sequelize default pluralization of tables
@@ -48,11 +61,13 @@ const UserDefinition = (sequelize, DataTypes) => {
     }
   );
 
-
   // Wrapper for class update function, validates extra permission and data
   User.updateInstance = async ({ data, loggedInUser }) => {
     if (data && loggedInUser) {
-      if (loggedInUser.role === "ADMIN" || loggedInUser.id === data.id) {
+      if (
+        loggedInUser.role === "ADMIN" ||
+        loggedInUser.id.toString() === data.id
+      ) {
         const { id } = data;
         const user = await User.findByPk(parseInt(id));
 
@@ -66,7 +81,7 @@ const UserDefinition = (sequelize, DataTypes) => {
       }
     }
 
-    throw new UserInputError("The input provided is not valid");
+    throw new UserInputError("Invalid data provided");
   };
 
   //  Wrapper for class create function, validates permissions and data existance
@@ -76,7 +91,7 @@ const UserDefinition = (sequelize, DataTypes) => {
         return await User.create(data);
       }
     }
-    throw new ForbiddenError("You are not allowed to perform this action");
+    throw new ForbiddenError("User does not have admin permissions");
   };
 
   User.findByLogin = async (login) => {
@@ -98,15 +113,28 @@ const UserDefinition = (sequelize, DataTypes) => {
     user.password = await user.generatePasswordHash();
   });
 
+  User.beforeUpdate(async (user) => {
+    user.otp = user.otp ? await user.generateOTPHash() : user.otp;
+  });
+
   // Handles password hashing using bcrypt
   User.prototype.generatePasswordHash = async function () {
     const saltRounds = 10;
     return await bcrypt.hash(this.password, saltRounds);
   };
 
+  User.prototype.generateOTPHash = async function () {
+    const saltRounds = 3;
+    return await bcrypt.hash(this.otp.toString(), saltRounds);
+  };
+
   // Performs a comparission between input password and stored hashed password
   User.prototype.validatePassword = function (password) {
     return bcrypt.compareSync(password, this.password);
+  };
+
+  User.prototype.validateOTP = function (otp) {
+    return bcrypt.compareSync(otp, this.otp);
   };
 
   return User;
