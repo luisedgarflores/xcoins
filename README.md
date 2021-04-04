@@ -1,4 +1,4 @@
-# Backend
+# Back-end
 
 How to run the server
 
@@ -22,4 +22,11 @@ Considerations
 
 * For this implementation, postgress was used for the db server, but, I implemented all database accesses using sequelize, so, by changing the dialect in .env file (including custom db credentials), the project can be run using mysql with no problems.
 * All tests run with random generated data, this ensures that each one of them is completely independent from external influence.
+* Contains two default users:
+  * username: luisflores
+  * password: 12345678
+  * ////////////////////////
+  * username:  diegoflores
+  * password: 12345678
+* Currently, the database will be deleted every time the server is restarted, this behavior can be disabled setting the index.js variable erase_database_on_restart to false
 
