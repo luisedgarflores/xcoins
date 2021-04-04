@@ -5,6 +5,7 @@ How to run the server
 * Go to env variables and change it to your proper db configurations
 * run npm install
 * run npm start
+* Server will run on localhost:8000/graphql
 
 Features
 
