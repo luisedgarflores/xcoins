@@ -9,25 +9,22 @@ import models, { sequelize } from "./models";
 import jwt from "jsonwebtoken";
 import { pubsub, EVENTS, fetchAPI } from "./utils";
 
-
-
 const port = process.env.SERVER_PORT;
 const colors = require("colors"); // allows to print colored terminal output during development
 const helmet = require("helmet");
 const shouldFetch = true;
 
-
-
 const app = express();
 const erase_database_on_restart = true;
 
 const updateExchangeRate = (exchangeRate) => {
-  pubsub.publish(EVENTS.EXCHANGE_RATE.UPDATED, {
-    exchangeRateUpdated: {
-      usd: exchangeRate.quote.USD.price,
-      lastUpdated: exchangeRate.last_updated,
-    },
-  });
+  if (exchangeRate?.last_updated && exchangeRate.quote?.USD)
+    pubsub.publish(EVENTS.EXCHANGE_RATE.UPDATED, {
+      exchangeRateUpdated: {
+        usd: exchangeRate.quote.USD.price,
+        lastUpdated: exchangeRate.last_updated,
+      },
+    });
 };
 
 const coinmarketConsumer = setInterval(async () => {
