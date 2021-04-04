@@ -6,7 +6,14 @@ import {
 } from "apollo-server";
 import { combineResolvers } from "graphql-resolvers";
 import { isAdmin, isAuthenticated } from "./permissions/globalPermissions";
-import { pubsub, EVENTS, fetchAPI } from '../utils'
+import {
+  pubsub,
+  EVENTS,
+  fetchAPI,
+  generateOTP,
+  generateEmailSender,
+  validateOTP
+} from "../utils";
 
 // Handles token creation usign user fields to create jwt token
 const createToken = async (user, secret, expiresIn) => {
@@ -15,6 +22,8 @@ const createToken = async (user, secret, expiresIn) => {
     expiresIn,
   });
 };
+
+const shouldFetch = false;
 
 export default {
   Query: {
@@ -25,15 +34,15 @@ export default {
     },
     // Allows admin to see any user, but client users can only see their profiles
     getUser: async (parent, { input: { id } }, { models, me }) => {
-      if (me.role === "ADMIN" || me.id === id) {
+      if (me.role === "ADMIN" || me.id.toString() === id.toString()) {
         const user = await models.User.findByPk(id);
         if (!user) return new UserInputError("User sent does not exist");
         return user;
       }
 
-      throw new ForbiddenError("Not authorized to see this information");
+      throw new ForbiddenError("User does not have admin permissions");
     },
-    // Allos admin to see all users
+    // Allows admin to see all users
     getUsers: combineResolvers(
       isAdmin,
       async (parent, args, { models, me }) => {
@@ -42,30 +51,80 @@ export default {
     ),
     getExchangeRate: combineResolvers(
       isAuthenticated,
-      async (_parent, _args, { models }) => {
-        const exchangeRate = await fetchAPI()
-        
+      async () => {
+        const exchangeRate = await fetchAPI(shouldFetch);
+
         return {
           usd: exchangeRate.quote.USD.price,
-          lastUpdated: exchangeRate.last_updated
-        }
+          lastUpdated: exchangeRate.last_updated,
+        };
       }
-    )
+    ),
+    requestOTP: async (_parent, { input: { email } }, { models }) => {
+      const user = models.User.findOne({
+        where: {
+          email,
+        },
+      });
+
+      const emailSender = await generateEmailSender();
+
+      if (user) {
+        const otp = await generateOTP();
+        await user.update({ otp });
+        await user.save();
+        await emailSender.sendEmail({
+          to: user.email,
+          subject: "BTC/USD requested code",
+          text: otp,
+        });
+      }
+
+      return {
+        message:
+          "If the email belongs to a registered user, a code will be send to that email",
+      };
+    },
   },
   Mutation: {
     // Allow users to register into the platform
     signUp: async (
       parent,
-      { email, password, username, ...rest },
-      { models, secret }
+      { input: { email, password, username, name } },
+      { models }
     ) => {
+      const emailSender = await generateEmailSender();
       const user = await models.User.create({
         username,
         email,
         password,
-        rest,
+        name,
+        role: "CLIENT",
+        validatedUser: false,
+        otp,
       });
-      return { token: createToken(user, secret, "30m") };
+      let validOTP = false;
+      let otp;
+
+      do {
+        otp = await generateOTP(300);
+        const users = await models.User.findAll({
+          where: {
+            otp,
+          },
+        });
+
+        if (!users || users.length === 0) {
+          validOTP = true;
+          await emailSender.sendEmail({
+            to: user.email,
+            text: otp,
+            subject: "Account created successfully",
+          });
+        }
+      } while (!validOTP);
+
+      return true;
     },
     //Allows register users to sign into the platform
     signIn: async (parent, { input }, { models }) => {
@@ -127,6 +186,7 @@ export default {
               loggedInUser: me,
               data: {
                 ...rest,
+                validatedUser: false,
               },
             });
           }
@@ -134,10 +194,36 @@ export default {
         return new UserInputError("Invalid data provided");
       }
     ),
+
+    validateUser: async (_parent, { input: otp}, { models }) => {
+      console.log(otp)
+      const user = models.User.findOne({
+        where: {
+          otp: otp.otp
+        }
+      })
+
+      console.log(user)
+
+      const validOTP = await validateOTP({ otp: otp.otp })
+      console.log(validOTP)
+      if (user && validOTP) {
+        await user.update({
+          validatedUser: true
+        })
+
+        await user.save()
+
+        console.log(user)
+        
+        return user
+
+      }
+    },
   },
   // User to parse default return information into login payload
   LoginPayload: {
-    user: async (user, _args, _context) => {
+    user: async (user) => {
       return user;
     },
     token: async (user, _args, { secret }) => {
@@ -147,7 +233,7 @@ export default {
     },
   },
   Subscription: {
-    exchangeRateUpdated: console.log('I HAVE BEEN CALLED') || {
+    exchangeRateUpdated: console.log("I HAVE BEEN CALLED") || {
       subscribe: () => pubsub.asyncIterator(EVENTS.EXCHANGE_RATE.UPDATED),
     },
   },

@@ -9,12 +9,15 @@ import models, { sequelize } from "./models";
 import jwt from "jsonwebtoken";
 import { pubsub, EVENTS, fetchAPI } from "./utils";
 import axios from "axios";
+
 const port = process.env.SERVER_PORT;
 const colors = require("colors"); // allows to print colored terminal output during development
 const helmet = require("helmet");
+const shouldFetch = false;
 
 const app = express();
 const erase_database_on_restart = true;
+
 
 const updateExchangeRate = (exchangeRate) => {
   pubsub.publish(EVENTS.EXCHANGE_RATE.UPDATED, {
@@ -27,48 +30,18 @@ const updateExchangeRate = (exchangeRate) => {
 
 const coinmarketConsumer = setInterval(async () => {
   console.log("ENTRANDO AL TIME");
-  // axios({
-  //   method: "get",
-  //   timeout: 1000,
-  //   url:
-  //     "https://pro-api.coinmarketcap.com/v1/tools/price-conversion?symbol=BTC&convert=USD&amount=1",
-  //   headers: { "X-CMC_PRO_API_KEY": "c7d43b67-b87c-430d-8bda-084997ed3bd6" },
-  //   withCredentials: true,
-  // })
-  //   .then((res) => {
-  //     console.log(
-  //       "\x1b[32m%s\x1b[0m",
-  //       "================================================="
-  //     );
-  //     console.log("RESPUESTA", res.data);
-  //     console.log(
-  //       "\x1b[32m%s\x1b[0m",
-  //       "================================================="
-  //     );
-  //   })
-  //   .catch((err) => {
-  //     console.log(
-  //       "\x1b[32m%s\x1b[0m",
-  //       "================================================="
-  //     );
-  //     console.log("ERROR", err);
-  //     console.log(
-  //       "\x1b[32m%s\x1b[0m",
-  //       "================================================="
-  //     );
-  //   })
-  const exchangeRate = await fetchAPI();
+  const exchangeRate = await fetchAPI(shouldFetch);
   updateExchangeRate(exchangeRate);
 }, 60000);
 
 // Ensures port is not used when nodemon or user send signals
 process.once("SIGUSR2", async function () {
-  await clearInterval(coinmarketConsumer);
-  await process.kill(process.pid, "SIGUSR2");
+  clearInterval(coinmarketConsumer);
+  process.kill(process.pid, "SIGUSR2");
 });
 process.on("SIGINT", async function () {
-  await clearInterval(coinmarketConsumer);
-  await process.kill(process.pid, "SIGINT");
+  clearInterval(coinmarketConsumer);
+  process.kill(process.pid, "SIGINT");
 });
 
 app.use(cors()); // enables cors for requests
@@ -112,9 +85,12 @@ const server = new ApolloServer({
   },
 });
 
+//Apply graphql as middleware
 server.applyMiddleware({ app, path: "/graphql" });
 
 const httpServer = http.createServer(app);
+
+// Enables web socket
 server.installSubscriptionHandlers(httpServer);
 
 //syncs models into db and delete all present records based on condition
@@ -138,6 +114,7 @@ const setUpMockData = async () => {
     password: "12345678",
     role: "ADMIN",
     name: "Luis Flores",
+    validatedUser: true,
   });
 
   await models.User.create({
@@ -146,6 +123,7 @@ const setUpMockData = async () => {
     password: "12345678",
     role: "CLIENT",
     name: "Diego Flores",
+    validatedUser: true
   });
 };
 

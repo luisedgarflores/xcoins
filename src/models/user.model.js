@@ -41,6 +41,15 @@ const UserDefinition = (sequelize, DataTypes) => {
           isEmail: true,
         },
       },
+      otp: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: true
+      },
+      validatedUser: {
+        type: DataTypes.BOOLEAN,
+        default: false
+      }
     },
     {
       freezeTableName: true, // Disable sequelize default pluralization of tables
@@ -52,7 +61,7 @@ const UserDefinition = (sequelize, DataTypes) => {
   // Wrapper for class update function, validates extra permission and data
   User.updateInstance = async ({ data, loggedInUser }) => {
     if (data && loggedInUser) {
-      if (loggedInUser.role === "ADMIN" || loggedInUser.id === data.id) {
+      if (loggedInUser.role === "ADMIN" || loggedInUser.id.toString() === data.id) {
         const { id } = data;
         const user = await User.findByPk(parseInt(id));
 
@@ -66,7 +75,7 @@ const UserDefinition = (sequelize, DataTypes) => {
       }
     }
 
-    throw new UserInputError("The input provided is not valid");
+    throw new UserInputError("Invalid data provided");
   };
 
   //  Wrapper for class create function, validates permissions and data existance
@@ -76,7 +85,7 @@ const UserDefinition = (sequelize, DataTypes) => {
         return await User.create(data);
       }
     }
-    throw new ForbiddenError("You are not allowed to perform this action");
+    throw new ForbiddenError("User does not have admin permissions");
   };
 
   User.findByLogin = async (login) => {

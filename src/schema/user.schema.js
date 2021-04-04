@@ -6,13 +6,15 @@ export default gql`
     getUser(input: GetUserInput!): User!
     getUsers: [User!]!
     getExchangeRate: ExchangeRate!
+    requestOTP(input: RequestOTP!): OTPRequested!
   }
 
   extend type Mutation {
-    signUp(input: SignUpInput!): Token!
+    signUp(input: SignUpInput!): Boolean!
     signIn(input: SignInInput!): LoginPayload!
     deleteUser(input: DeleteUserInput!): Boolean!
     upsertUser(input: UpsertUserInput!): User!
+    validateUser(input: ValidateUserInput!): LoginPayload!
   }
 
   extend type Subscription {
@@ -24,6 +26,10 @@ export default gql`
     lastUpdated: Date!
   }
 
+  type OTPRequested {
+    message: String!
+  }
+
   type Token {
     token: String!
   }
@@ -31,6 +37,14 @@ export default gql`
   input SignInInput {
     login: String!
     password: String!
+  }
+
+  input RequestOTP {
+    email: String!
+  }
+
+  input ValidateUserInput {
+    otp: String!
   }
 
   type LoginPayload {
@@ -48,6 +62,7 @@ export default gql`
     role: Roles!
     email: String!
     username: String!
+    validatedUser: Boolean!
   }
 
   input UpsertUserInput {

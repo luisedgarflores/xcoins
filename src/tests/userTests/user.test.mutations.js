@@ -1,8 +1,8 @@
-import gql from 'graphql-tag'
+import gql from "graphql-tag";
 
 export const LOGIN = gql`
   mutation login($input: SignInInput!) {
-    signIn(input: $input){
+    signIn(input: $input) {
       user {
         id
         name
@@ -15,7 +15,7 @@ export const LOGIN = gql`
       }
     }
   }
-`
+`;
 
 export const UPSERT_USER = gql`
   mutation upsertUser($input: UpsertUserInput!) {
@@ -27,4 +27,26 @@ export const UPSERT_USER = gql`
       email
     }
   }
-`
+`;
+
+export const SIGNUP = gql`
+  mutation signUp($input: SignUpInput!) {
+    signUp(input: $input)
+  }
+`;
+
+export const VALIDATE_USER = gql`
+  mutation validateUser($input: ValidateUserInput!) {
+    validateUser(input: $input) {
+      user {
+        id
+        name
+        username
+        email
+      }
+      token {
+        token
+      }
+    }
+  }
+`;
